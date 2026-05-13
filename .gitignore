@@ -1,0 +1,9 @@
+__pycache__/
+.DS_Store
+
+# Generated local index. This may contain extracted course text.
+fab_tutor_index/
+
+# Keep course PDFs and local path lists private unless you have permission.
+*.pdf
+sources.txt

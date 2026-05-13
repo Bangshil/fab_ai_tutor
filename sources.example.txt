@@ -1,0 +1,5 @@
+# Add one PDF path per line, then copy this file to sources.txt.
+# Keep sources.txt private because it may reveal local file paths.
+#
+# Example:
+# /Users/yourname/Desktop/coursenotes/session-1.pdf
