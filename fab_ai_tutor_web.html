@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FAB AI Tutor Web</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+  <main class="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
+    <header class="flex flex-col gap-2 border-b border-slate-200 pb-4">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-semibold tracking-tight">FAB AI Tutor</h1>
+          <p class="mt-1 max-w-3xl text-sm text-slate-600">
+            Index KAIST FAB course PDFs directly in your browser and retrieve evidence only from the provided course materials.
+          </p>
+        </div>
+        <div id="statusPill" class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
+          No index
+        </div>
+      </div>
+    </header>
+
+    <section class="grid gap-5 lg:grid-cols-[360px_1fr]">
+      <aside class="space-y-4">
+        <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Build Index</h2>
+          <p class="mt-2 text-sm text-slate-600">
+            Select your PDFs and build an index. This follows the same pipeline as the Python <span class="mono">build</span> command.
+          </p>
+          <label class="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center hover:bg-slate-100">
+            <span class="text-sm font-medium text-slate-800">Choose PDF Files</span>
+            <span id="fileSummary" class="mt-1 text-xs text-slate-500">Multiple files supported</span>
+            <input id="pdfInput" class="hidden" type="file" accept="application/pdf,.pdf" multiple />
+          </label>
+          <button id="buildBtn" class="mt-3 w-full rounded-md bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300">
+            Build Index from PDFs
+          </button>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <button id="saveBtn" class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+              Save Index
+            </button>
+            <label class="rounded-md border border-slate-300 bg-white px-3 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-50">
+              Load Index
+              <input id="indexInput" class="hidden" type="file" accept="application/json,.json" />
+            </label>
+          </div>
+          <div id="buildLog" class="mt-3 max-h-44 overflow-auto rounded-md bg-slate-950 p-3 text-xs leading-5 text-slate-100 mono">
+            Ready.
+          </div>
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Index Stats</h2>
+          <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
+            <div class="rounded-md bg-slate-50 p-3">
+              <dt class="text-slate-500">PDFs</dt>
+              <dd id="statSources" class="mt-1 text-xl font-semibold">0</dd>
+            </div>
+            <div class="rounded-md bg-slate-50 p-3">
+              <dt class="text-slate-500">Chunks</dt>
+              <dd id="statChunks" class="mt-1 text-xl font-semibold">0</dd>
+            </div>
+            <div class="rounded-md bg-slate-50 p-3">
+              <dt class="text-slate-500">Terms</dt>
+              <dd id="statTerms" class="mt-1 text-xl font-semibold">0</dd>
+            </div>
+            <div class="rounded-md bg-slate-50 p-3">
+              <dt class="text-slate-500">Mode</dt>
+              <dd id="statMode" class="mt-1 text-xl font-semibold">TF-IDF</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Course Boundary</h2>
+          <p class="mt-2 text-sm leading-6 text-slate-700">
+            The tutor uses only retrieved FAB course passages. If there are no relevant results, it shows the same boundary message as the Python version.
+          </p>
+          <p class="mt-3 rounded-md bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+            This topic is not covered in the current course materials provided.
+          </p>
+        </section>
+      </aside>
+
+      <section class="space-y-4">
+        <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div class="flex flex-col gap-3">
+            <label for="queryInput" class="text-sm font-semibold text-slate-700">Question or Study Topic</label>
+            <textarea id="queryInput" rows="3" class="w-full resize-y rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200" placeholder="Example: credit assignment intermediate feedback"></textarea>
+          </div>
+          <div class="mt-4 flex flex-wrap items-center gap-2">
+            <button data-mode="search" class="modeBtn rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Search</button>
+            <button data-mode="answer" class="modeBtn rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Answer Draft</button>
+            <button data-mode="quiz" class="modeBtn rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Quiz</button>
+            <button data-mode="prompt" class="modeBtn rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">LLM Prompt</button>
+            <div class="ml-auto flex items-center gap-2">
+              <label for="topKInput" class="text-sm text-slate-600">Top K</label>
+              <input id="topKInput" type="number" min="1" max="12" value="5" class="w-20 rounded-md border border-slate-300 px-2 py-2 text-sm" />
+              <button id="runBtn" class="rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600">
+                Run
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+            <h2 id="resultTitle" class="text-sm font-semibold uppercase tracking-wide text-slate-500">Results</h2>
+            <button id="copyBtn" class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+              Copy Result
+            </button>
+          </div>
+          <div id="results" class="min-h-96 p-4">
+            <div class="flex min-h-80 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-center text-sm text-slate-500">
+              Build a PDF index, then enter a question.
+            </div>
+          </div>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script type="module">
+    import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs";
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs";
+
+    const SYSTEM_BOUNDARY = "Use only the retrieved KAIST FAB course passages. If the retrieved passages do not cover the question, say: This topic is not covered in the current course materials provided.";
+    const MISSING_MESSAGE = "This topic is not covered in the current course materials provided.";
+
+    const STOP_WORDS = new Set([
+      "a","about","above","across","after","afterwards","again","against","all","almost","alone","along","already","also","although","always","am","among","amongst","amoungst","amount","an","and","another","any","anyhow","anyone","anything","anyway","anywhere","are","around","as","at","back","be","became","because","become","becomes","becoming","been","before","beforehand","behind","being","below","beside","besides","between","beyond","bill","both","bottom","but","by","call","can","cannot","cant","co","con","could","couldnt","cry","de","describe","detail","do","done","down","due","during","each","eg","eight","either","eleven","else","elsewhere","empty","enough","etc","even","ever","every","everyone","everything","everywhere","except","few","fifteen","fifty","fill","find","fire","first","five","for","former","formerly","forty","found","four","from","front","full","further","get","give","go","had","has","hasnt","have","he","hence","her","here","hereafter","hereby","herein","hereupon","hers","herself","him","himself","his","how","however","hundred","i","ie","if","in","inc","indeed","interest","into","is","it","its","itself","keep","last","latter","latterly","least","less","ltd","made","many","may","me","meanwhile","might","mill","mine","more","moreover","most","mostly","move","much","must","my","myself","name","namely","neither","never","nevertheless","next","nine","no","nobody","none","noone","nor","not","nothing","now","nowhere","of","off","often","on","once","one","only","onto","or","other","others","otherwise","our","ours","ourselves","out","over","own","part","per","perhaps","please","put","rather","re","same","see","seem","seemed","seeming","seems","serious","several","she","should","show","side","since","sincere","six","sixty","so","some","somehow","someone","something","sometime","sometimes","somewhere","still","such","system","take","ten","than","that","the","their","them","themselves","then","thence","there","thereafter","thereby","therefore","therein","thereupon","these","they","thick","thin","third","this","those","though","three","through","throughout","thru","thus","to","together","too","top","toward","towards","twelve","twenty","two","un","under","until","up","upon","us","very","via","was","we","well","were","what","whatever","when","whence","whenever","where","whereafter","whereas","whereby","wherein","whereupon","wherever","whether","which","while","whither","who","whoever","whole","whom","whose","why","will","with","within","without","would","yet","you","your","yours","yourself","yourselves"
+    ]);
+
+    const state = {
+      chunks: [],
+      vocabulary: [],
+      idf: [],
+      docVectors: [],
+      sourceNames: new Set(),
+      mode: "search",
+      lastText: ""
+    };
+
+    const els = {
+      pdfInput: document.getElementById("pdfInput"),
+      indexInput: document.getElementById("indexInput"),
+      fileSummary: document.getElementById("fileSummary"),
+      buildBtn: document.getElementById("buildBtn"),
+      saveBtn: document.getElementById("saveBtn"),
+      runBtn: document.getElementById("runBtn"),
+      copyBtn: document.getElementById("copyBtn"),
+      buildLog: document.getElementById("buildLog"),
+      queryInput: document.getElementById("queryInput"),
+      topKInput: document.getElementById("topKInput"),
+      results: document.getElementById("results"),
+      resultTitle: document.getElementById("resultTitle"),
+      statusPill: document.getElementById("statusPill"),
+      statSources: document.getElementById("statSources"),
+      statChunks: document.getElementById("statChunks"),
+      statTerms: document.getElementById("statTerms"),
+      statMode: document.getElementById("statMode")
+    };
+
+    function log(message) {
+      els.buildLog.textContent += `\n${message}`;
+      els.buildLog.scrollTop = els.buildLog.scrollHeight;
+    }
+
+    function normalizeText(text) {
+      return text.replaceAll("\u0000", " ").replace(/\s+/g, " ").trim();
+    }
+
+    function chunkWords(text, size = 220, overlap = 45) {
+      const words = text.split(/\s+/).filter(Boolean);
+      if (!words.length) return [];
+      const chunks = [];
+      const step = Math.max(size - overlap, 1);
+      for (let start = 0; start < words.length; start += step) {
+        const segment = words.slice(start, start + size);
+        if (segment.length >= 35) chunks.push(segment.join(" "));
+      }
+      return chunks;
+    }
+
+    function tokenize(text) {
+      const tokens = (text.toLowerCase().match(/\b\w\w+\b/g) || []).filter(token => !STOP_WORDS.has(token));
+      const terms = [...tokens];
+      for (let i = 0; i < tokens.length - 1; i += 1) {
+        terms.push(`${tokens[i]} ${tokens[i + 1]}`);
+      }
+      return terms;
+    }
+
+    async function extractPdfChunks(file) {
+      const data = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data, disableWorker: true }).promise;
+      const chunks = [];
+      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+        const page = await pdf.getPage(pageNumber);
+        const content = await page.getTextContent();
+        const text = normalizeText(content.items.map(item => item.str || "").join(" "));
+        for (const piece of chunkWords(text)) {
+          chunks.push({
+            source: file.name,
+            page_start: pageNumber,
+            page_end: pageNumber,
+            text: piece
+          });
+        }
+      }
+      return chunks;
+    }
+
+    function termCounts(terms) {
+      const counts = new Map();
+      for (const term of terms) counts.set(term, (counts.get(term) || 0) + 1);
+      return counts;
+    }
+
+    function buildTfidfIndex(chunks) {
+      const docTermCounts = [];
+      const documentFrequency = new Map();
+      const collectionFrequency = new Map();
+
+      for (const chunk of chunks) {
+        const counts = termCounts(tokenize(chunk.text));
+        docTermCounts.push(counts);
+        for (const [term, count] of counts.entries()) {
+          documentFrequency.set(term, (documentFrequency.get(term) || 0) + 1);
+          collectionFrequency.set(term, (collectionFrequency.get(term) || 0) + count);
+        }
+      }
+
+      const vocabulary = [...collectionFrequency.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, 60000)
+        .map(([term]) => term);
+
+      const termIndex = new Map(vocabulary.map((term, index) => [term, index]));
+      const nDocs = chunks.length;
+      const idf = vocabulary.map(term => Math.log((1 + nDocs) / (1 + (documentFrequency.get(term) || 0))) + 1);
+      const docVectors = docTermCounts.map(counts => normalizeVector(countsToVector(counts, termIndex, idf)));
+
+      return { vocabulary, idf, docVectors };
+    }
+
+    function countsToVector(counts, termIndex, idf) {
+      const vector = new Map();
+      for (const [term, count] of counts.entries()) {
+        const index = termIndex.get(term);
+        if (index !== undefined) vector.set(index, count * idf[index]);
+      }
+      return vector;
+    }
+
+    function normalizeVector(vector) {
+      let norm = 0;
+      for (const value of vector.values()) norm += value * value;
+      norm = Math.sqrt(norm);
+      if (!norm) return vector;
+      const normalized = new Map();
+      for (const [index, value] of vector.entries()) normalized.set(index, value / norm);
+      return normalized;
+    }
+
+    function dotProduct(a, b) {
+      let score = 0;
+      const [small, large] = a.size < b.size ? [a, b] : [b, a];
+      for (const [index, value] of small.entries()) {
+        score += value * (large.get(index) || 0);
+      }
+      return score;
+    }
+
+    function search(query, topK = 5) {
+      if (!state.chunks.length) return [];
+      const termIndex = new Map(state.vocabulary.map((term, index) => [term, index]));
+      const queryVector = normalizeVector(countsToVector(termCounts(tokenize(query)), termIndex, state.idf));
+      const ranked = state.docVectors
+        .map((vector, index) => ({ score: dotProduct(queryVector, vector), chunk: state.chunks[index] }))
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, topK);
+      return ranked;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function truncate(text, maxChars) {
+      if (text.length <= maxChars) return text;
+      return `${text.slice(0, maxChars).trim()}...`;
+    }
+
+    function resultCard(item, rank, maxChars = 650) {
+      const { score, chunk } = item;
+      return `
+        <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h3 class="text-sm font-semibold text-slate-900">[${rank}] ${escapeHtml(chunk.source)}, page ${chunk.page_start}</h3>
+            <span class="rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-800">relevance ${score.toFixed(3)}</span>
+          </div>
+          <p class="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">${escapeHtml(truncate(chunk.text, maxChars))}</p>
+        </article>
+      `;
+    }
+
+    function renderSearch(results) {
+      if (!results.length) return renderMissing();
+      const text = results.map((item, index) => `[${index + 1}] ${item.chunk.source}, page ${item.chunk.page_start} | relevance ${item.score.toFixed(3)}\n${truncate(item.chunk.text, 650)}`).join("\n\n");
+      state.lastText = text;
+      els.resultTitle.textContent = "Search Results";
+      els.results.innerHTML = `<div class="space-y-3">${results.map((item, index) => resultCard(item, index + 1)).join("")}</div>`;
+    }
+
+    function renderAnswer(results) {
+      if (!results.length || results[0].score < 0.04) return renderMissing();
+      const text = `Grounded answer draft\n---------------------\n${SYSTEM_BOUNDARY}\n\nUse these retrieved course passages to answer:\n\n` +
+        results.map((item, index) => `[${index + 1}] ${item.chunk.source}, page ${item.chunk.page_start} | relevance ${item.score.toFixed(3)}\n${truncate(item.chunk.text, 650)}`).join("\n\n");
+      state.lastText = text;
+      els.resultTitle.textContent = "Answer Draft";
+      els.results.innerHTML = `
+        <div class="space-y-4">
+          <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+            <p class="font-semibold">Grounded answer draft</p>
+            <p class="mt-2">${escapeHtml(SYSTEM_BOUNDARY)}</p>
+          </div>
+          <div class="space-y-3">${results.map((item, index) => resultCard(item, index + 1)).join("")}</div>
+        </div>
+      `;
+    }
+
+    function renderQuiz(results, count) {
+      if (!results.length) return renderMissing();
+      const stems = [
+        "Which course concept best explains the situation described in the cited passage?",
+        "What problem, limitation, or tension is the passage emphasizing?",
+        "How would this idea apply to an organization or business problem?",
+        "Which term from the course notes is most central here?",
+        "What kind of feedback, constraint, representation, or strategy is being discussed?"
+      ];
+      const quizItems = results.slice(0, count).map((item, index) => ({
+        q: stems[index % stems.length],
+        source: `${item.chunk.source}, page ${item.chunk.page_start}`,
+        evidence: truncate(item.chunk.text, 360)
+      }));
+      state.lastText = quizItems.map((item, index) => `${index + 1}. ${item.q}\n   Source: ${item.source}\n   Evidence: ${item.evidence}`).join("\n\n");
+      els.resultTitle.textContent = "Quiz Practice";
+      els.results.innerHTML = `
+        <div class="space-y-3">
+          <p class="text-sm text-slate-600">Answer from the course materials, then check against the cited passages.</p>
+          ${quizItems.map((item, index) => `
+            <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 class="text-base font-semibold text-slate-900">${index + 1}. ${escapeHtml(item.q)}</h3>
+              <p class="mt-2 text-xs font-medium uppercase tracking-wide text-slate-500">Source</p>
+              <p class="mt-1 text-sm text-slate-700">${escapeHtml(item.source)}</p>
+              <p class="mt-3 text-xs font-medium uppercase tracking-wide text-slate-500">Evidence</p>
+              <p class="mt-1 text-sm leading-6 text-slate-700">${escapeHtml(item.evidence)}</p>
+            </article>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderPrompt(query, results) {
+      if (!results.length) return renderMissing();
+      const text = `Paste this into an LLM with your course files uploaded:\n\n${SYSTEM_BOUNDARY}\n\nUser question: ${query}\n\nRelevant course passages:\n` +
+        results.map((item, index) => `\nPassage ${index + 1}: ${item.chunk.source}, page ${item.chunk.page_start}\n${item.chunk.text}`).join("\n");
+      state.lastText = text;
+      els.resultTitle.textContent = "LLM Prompt";
+      els.results.innerHTML = `
+        <pre class="max-h-[640px] overflow-auto rounded-lg bg-slate-950 p-4 text-sm leading-6 text-slate-100 mono whitespace-pre-wrap">${escapeHtml(text)}</pre>
+      `;
+    }
+
+    function renderMissing() {
+      state.lastText = MISSING_MESSAGE;
+      els.resultTitle.textContent = "No Course Coverage";
+      els.results.innerHTML = `
+        <div class="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm font-medium text-amber-950">
+          ${MISSING_MESSAGE}
+        </div>
+      `;
+    }
+
+    function updateStats() {
+      state.sourceNames = new Set(state.chunks.map(chunk => chunk.source));
+      els.statSources.textContent = state.sourceNames.size;
+      els.statChunks.textContent = state.chunks.length;
+      els.statTerms.textContent = state.vocabulary.length;
+      els.statusPill.textContent = state.chunks.length ? "Index ready" : "No index";
+      els.statusPill.className = state.chunks.length
+        ? "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+        : "rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700";
+      els.saveBtn.disabled = !state.chunks.length;
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+      document.querySelectorAll(".modeBtn").forEach(button => {
+        const active = button.dataset.mode === mode;
+        button.className = active
+          ? "modeBtn rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+          : "modeBtn rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50";
+      });
+    }
+
+    async function buildFromPdfs() {
+      const files = [...els.pdfInput.files];
+      if (!files.length) {
+        log("No PDF files selected.");
+        return;
+      }
+      els.buildBtn.disabled = true;
+      els.buildLog.textContent = "Building index...";
+      const allChunks = [];
+      try {
+        for (const file of files) {
+          log(`Reading ${file.name}`);
+          const chunks = await extractPdfChunks(file);
+          allChunks.push(...chunks);
+          log(`  extracted ${chunks.length} chunks`);
+        }
+        if (!allChunks.length) throw new Error("No text chunks were extracted. Check the PDF files.");
+        const index = buildTfidfIndex(allChunks);
+        state.chunks = allChunks;
+        state.vocabulary = index.vocabulary;
+        state.idf = index.idf;
+        state.docVectors = index.docVectors;
+        updateStats();
+        log(`Indexed ${state.chunks.length} chunks from ${files.length} PDFs.`);
+      } catch (error) {
+        log(`Error: ${error.message}`);
+      } finally {
+        els.buildBtn.disabled = false;
+      }
+    }
+
+    function runMode() {
+      const query = els.queryInput.value.trim();
+      const topK = Math.max(1, Math.min(12, Number(els.topKInput.value) || 5));
+      if (!state.chunks.length) {
+        els.results.innerHTML = `<div class="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">Build a PDF index or load a saved index first.</div>`;
+        return;
+      }
+      if (!query) {
+        els.results.innerHTML = `<div class="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">Enter a question or study topic.</div>`;
+        return;
+      }
+      const results = search(query, topK);
+      if (state.mode === "search") renderSearch(results);
+      if (state.mode === "answer") renderAnswer(results);
+      if (state.mode === "quiz") renderQuiz(results, topK);
+      if (state.mode === "prompt") renderPrompt(query, results);
+    }
+
+    function saveIndex() {
+      const payload = {
+        created_at: new Date().toISOString(),
+        chunks: state.chunks
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "fab_tutor_index_web.json";
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function loadIndexFile(file) {
+      els.buildLog.textContent = `Loading ${file.name}`;
+      const payload = JSON.parse(await file.text());
+      const chunks = Array.isArray(payload) ? payload : payload.chunks;
+      if (!Array.isArray(chunks) || !chunks.length) {
+        log("Error: Invalid index JSON.");
+        return;
+      }
+      const index = buildTfidfIndex(chunks);
+      state.chunks = chunks;
+      state.vocabulary = index.vocabulary;
+      state.idf = index.idf;
+      state.docVectors = index.docVectors;
+      updateStats();
+      log(`Loaded and indexed ${state.chunks.length} chunks.`);
+    }
+
+    els.pdfInput.addEventListener("change", () => {
+      const files = [...els.pdfInput.files];
+      els.fileSummary.textContent = files.length ? `${files.length} PDF file${files.length === 1 ? "" : "s"} selected` : "Multiple files supported";
+    });
+    els.indexInput.addEventListener("change", event => {
+      const file = event.target.files[0];
+      if (file) loadIndexFile(file);
+    });
+    els.buildBtn.addEventListener("click", buildFromPdfs);
+    els.saveBtn.addEventListener("click", saveIndex);
+    els.runBtn.addEventListener("click", runMode);
+    els.copyBtn.addEventListener("click", async () => {
+      if (!state.lastText) return;
+      await navigator.clipboard.writeText(state.lastText);
+      els.copyBtn.textContent = "Copied";
+      setTimeout(() => { els.copyBtn.textContent = "Copy Result"; }, 1200);
+    });
+    document.querySelectorAll(".modeBtn").forEach(button => {
+      button.addEventListener("click", () => setMode(button.dataset.mode));
+    });
+    els.queryInput.addEventListener("keydown", event => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") runMode();
+    });
+
+    updateStats();
+  </script>
+</body>
+</html>

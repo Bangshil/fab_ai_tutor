@@ -36,6 +36,18 @@ python3 fab_ai_tutor.py answer "What is the credit assignment problem?"
 python3 fab_ai_tutor.py quiz "Weekly Module 4 knowledge representation and reasoning" --count 5
 ```
 
+## Run the Browser Prototype
+
+Open `fab_ai_tutor_web.html` directly in a browser. No backend server is required.
+
+The web version mirrors the Python pipeline in JavaScript:
+
+```text
+PDF upload -> text extraction -> chunking -> TF-IDF index -> cosine similarity search
+```
+
+Because browsers cannot read private local file paths automatically, choose your PDFs from the web UI. You can also save a generated browser index as JSON and load it again later.
+
 ## Create a Prompt for Another LLM
 
 ```bash
@@ -47,6 +59,7 @@ Copy the output into Gemini, ChatGPT, or another model. It includes the strict k
 ## Files Created
 
 - `fab_ai_tutor.py`: local PDF extraction, TF-IDF indexing, search, answer drafting, quiz generation, and prompt generation.
+- `fab_ai_tutor_web.html`: single-file browser prototype with upload, build, search, answer, quiz, and prompt modes.
 - `FAB_TUTOR_SYSTEM_PROMPT.md`: strict tutor prompt for any LLM.
 - `sources.example.txt`: template for your private PDF path list.
 - `fab_tutor_index/`: generated index folder after running `build`.
