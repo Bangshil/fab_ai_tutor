@@ -17,7 +17,7 @@
         <div>
           <h1 class="text-2xl font-semibold tracking-tight">FAB AI Tutor</h1>
           <p class="mt-1 max-w-3xl text-sm text-slate-600">
-            Index KAIST FAB course PDFs directly in your browser and retrieve evidence only from the provided course materials.
+            An AI system for studying AI ideas under limited processing capacity: represent course PDFs as searchable chunks, search with a heuristic, and aggregate evidence from course materials.
           </p>
         </div>
         <div id="statusPill" class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
@@ -31,7 +31,7 @@
         <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Build Index</h2>
           <p class="mt-2 text-sm text-slate-600">
-            Select your PDFs and build an index. This follows the same pipeline as the Python <span class="mono">build</span> command.
+            Select your PDFs and represent them as source/page/text chunks. This follows the same pipeline as the Python <span class="mono">build</span> command.
           </p>
           <label class="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center hover:bg-slate-100">
             <span class="text-sm font-medium text-slate-800">Choose PDF Files</span>
@@ -71,16 +71,29 @@
               <dd id="statTerms" class="mt-1 text-xl font-semibold">0</dd>
             </div>
             <div class="rounded-md bg-slate-50 p-3">
-              <dt class="text-slate-500">Mode</dt>
-              <dd id="statMode" class="mt-1 text-xl font-semibold">TF-IDF</dd>
+              <dt class="text-slate-500">Applied Ideas</dt>
+              <dd id="statMode" class="mt-1 text-base font-semibold leading-6">Search + Representation + Aggregation</dd>
             </div>
           </dl>
         </section>
 
         <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Course AI Ideas Applied</h2>
+          <div class="mt-3 space-y-3 text-sm leading-6 text-slate-700">
+            <p><strong>Credit Assignment:</strong> identify which passages deserve credit for helping a student understand a question.</p>
+            <p><strong>Information Processing:</strong> reduce the burden of reading every page by surfacing a small evidence set.</p>
+            <p><strong>Search:</strong> treat the query as a goal and use a heuristic to find promising course chunks.</p>
+            <p><strong>Representation:</strong> convert PDFs into structured chunks with source, page, and text.</p>
+            <p><strong>KRR:</strong> use course passages as a knowledge base for evidence-based answer scaffolds.</p>
+            <p><strong>Interaction:</strong> support study through search, answer draft, quiz, and prompt modes.</p>
+            <p><strong>Aggregation:</strong> gather competing candidate passages into a shared evidence board.</p>
+          </div>
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Course Boundary</h2>
           <p class="mt-2 text-sm leading-6 text-slate-700">
-            The tutor uses only retrieved FAB course passages. If there are no relevant results, it shows the same boundary message as the Python version.
+            The tutor constrains outputs to retrieved FAB course passages. If there are no relevant results, it shows the same boundary message as the Python version.
           </p>
           <p class="mt-3 rounded-md bg-amber-50 p-3 text-xs leading-5 text-amber-900">
             This topic is not covered in the current course materials provided.
@@ -309,32 +322,45 @@
       return `
         <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <h3 class="text-sm font-semibold text-slate-900">[${rank}] ${escapeHtml(chunk.source)}, page ${chunk.page_start}</h3>
-            <span class="rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-800">relevance ${score.toFixed(3)}</span>
+            <h3 class="text-sm font-semibold text-slate-900">Candidate passage ${rank}: ${escapeHtml(chunk.source)}, page ${chunk.page_start}</h3>
+            <span class="rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-800">Search heuristic score ${score.toFixed(3)}</span>
           </div>
           <p class="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">${escapeHtml(truncate(chunk.text, maxChars))}</p>
         </article>
       `;
     }
 
+    function aggregationSummary(results) {
+      const fileCount = new Set(results.map(item => item.chunk.source)).size;
+      const passageCount = results.length;
+      return `
+        <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950">
+          <p class="font-semibold">Aggregation Summary</p>
+          <p class="mt-1">The system aggregated ${passageCount} competing candidate passage${passageCount === 1 ? "" : "s"} from ${fileCount} course file${fileCount === 1 ? "" : "s"} into a shared evidence board.</p>
+        </div>
+      `;
+    }
+
     function renderSearch(results) {
       if (!results.length) return renderMissing();
-      const text = results.map((item, index) => `[${index + 1}] ${item.chunk.source}, page ${item.chunk.page_start} | relevance ${item.score.toFixed(3)}\n${truncate(item.chunk.text, 650)}`).join("\n\n");
+      const text = `Aggregation Summary\nThe system aggregated ${results.length} competing candidate passage${results.length === 1 ? "" : "s"} from ${new Set(results.map(item => item.chunk.source)).size} course file${new Set(results.map(item => item.chunk.source)).size === 1 ? "" : "s"} into a shared evidence board.\n\n` +
+        results.map((item, index) => `[${index + 1}] ${item.chunk.source}, page ${item.chunk.page_start} | Search heuristic score ${item.score.toFixed(3)}\n${truncate(item.chunk.text, 650)}`).join("\n\n");
       state.lastText = text;
       els.resultTitle.textContent = "Search Results";
-      els.results.innerHTML = `<div class="space-y-3">${results.map((item, index) => resultCard(item, index + 1)).join("")}</div>`;
+      els.results.innerHTML = `<div class="space-y-3">${aggregationSummary(results)}${results.map((item, index) => resultCard(item, index + 1)).join("")}</div>`;
     }
 
     function renderAnswer(results) {
       if (!results.length || results[0].score < 0.04) return renderMissing();
       const text = `Grounded answer draft\n---------------------\n${SYSTEM_BOUNDARY}\n\nUse these retrieved course passages to answer:\n\n` +
-        results.map((item, index) => `[${index + 1}] ${item.chunk.source}, page ${item.chunk.page_start} | relevance ${item.score.toFixed(3)}\n${truncate(item.chunk.text, 650)}`).join("\n\n");
+        results.map((item, index) => `[${index + 1}] ${item.chunk.source}, page ${item.chunk.page_start} | Search heuristic score ${item.score.toFixed(3)}\n${truncate(item.chunk.text, 650)}`).join("\n\n");
       state.lastText = text;
       els.resultTitle.textContent = "Answer Draft";
       els.results.innerHTML = `
         <div class="space-y-4">
           <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-            <p class="font-semibold">Grounded answer draft</p>
+            <p class="font-semibold">KRR-style answer scaffold</p>
+            <p class="mt-2">Use the retrieved passages as a course-material knowledge base. The answer draft is evidence-based scaffolding, not a full independent inference engine.</p>
             <p class="mt-2">${escapeHtml(SYSTEM_BOUNDARY)}</p>
           </div>
           <div class="space-y-3">${results.map((item, index) => resultCard(item, index + 1)).join("")}</div>
@@ -360,7 +386,10 @@
       els.resultTitle.textContent = "Quiz Practice";
       els.results.innerHTML = `
         <div class="space-y-3">
-          <p class="text-sm text-slate-600">Answer from the course materials, then check against the cited passages.</p>
+          <div class="rounded-lg border border-indigo-200 bg-indigo-50 p-4 text-sm leading-6 text-indigo-950">
+            <p class="font-semibold">Active recall and intermediate feedback</p>
+            <p class="mt-1">Use these questions to test student understanding, then compare answers against the cited course evidence.</p>
+          </div>
           ${quizItems.map((item, index) => `
             <article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
               <h3 class="text-base font-semibold text-slate-900">${index + 1}. ${escapeHtml(item.q)}</h3>
@@ -381,7 +410,13 @@
       state.lastText = text;
       els.resultTitle.textContent = "LLM Prompt";
       els.results.innerHTML = `
-        <pre class="max-h-[640px] overflow-auto rounded-lg bg-slate-950 p-4 text-sm leading-6 text-slate-100 mono whitespace-pre-wrap">${escapeHtml(text)}</pre>
+        <div class="space-y-3">
+          <div class="rounded-lg border border-purple-200 bg-purple-50 p-4 text-sm leading-6 text-purple-950">
+            <p class="font-semibold">Interaction under a course boundary</p>
+            <p class="mt-1">This prompt lets an external LLM interact with the student while constraining it to retrieved course evidence.</p>
+          </div>
+          <pre class="max-h-[640px] overflow-auto rounded-lg bg-slate-950 p-4 text-sm leading-6 text-slate-100 mono whitespace-pre-wrap">${escapeHtml(text)}</pre>
+        </div>
       `;
     }
 

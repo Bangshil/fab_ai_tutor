@@ -1,8 +1,24 @@
 # FAB AI Tutor Starter
 
-This starter project turns your KAIST FAB PDFs into a local course-grounded tutor index.
+This starter project turns your KAIST FAB PDFs into a local prototype for studying AI ideas under limited processing capacity.
 
-It does not fine-tune a model. Instead, it uses retrieval over your exact course files, which is usually the best first version for a private class tutor because it reduces hallucination and can cite the source pages.
+The main course ideas applied are **Search**, **Representation**, **Information Processing**, and **Aggregation**. The system represents course materials as searchable chunks, searches over those chunks with a heuristic, aggregates candidate passages into an evidence board, and constrains study outputs to course-grounded evidence.
+
+It does not fine-tune a model or claim to be a full reasoning engine. Instead, it uses retrieval over your exact course files, which is useful for a private class tutor because it reduces hallucination and can cite the source pages.
+
+Presentation framing:
+
+> This prototype applies multiple course AI ideas to the problem of studying AI ideas: it represents course materials as searchable chunks, searches over them with a heuristic, aggregates candidate passages into an evidence board, and constrains answers to course-grounded knowledge.
+
+## Course AI Ideas Applied
+
+- **Credit Assignment:** decides which passages deserve credit for helping answer a student question.
+- **Information Processing:** reduces the burden of reading every page by surfacing a small evidence set.
+- **Search:** treats a query as a goal and uses a heuristic to find promising course chunks.
+- **Representation:** converts PDFs into structured `source/page/text` chunks plus searchable features.
+- **Knowledge Representation and Reasoning:** treats retrieved course passages as a small knowledge base for evidence-based answer scaffolds.
+- **Interaction:** supports study through search, answer draft, quiz, and prompt modes.
+- **Aggregation:** gathers competing candidate passages from multiple files into one shared evidence board.
 
 ## Build the Index
 
@@ -40,11 +56,13 @@ python3 fab_ai_tutor.py quiz "Weekly Module 4 knowledge representation and reaso
 
 Open `fab_ai_tutor_web.html` directly in a browser. No backend server is required.
 
-The web version mirrors the Python pipeline in JavaScript:
+The web version mirrors the Python pipeline in JavaScript while making the course ideas visible:
 
 ```text
-PDF upload -> text extraction -> chunking -> TF-IDF index -> cosine similarity search
+PDF upload -> representation as chunks -> heuristic search -> aggregation into evidence board
 ```
+
+Internally, the heuristic search is implemented with TF-IDF features and cosine similarity. This is an implementation detail, not the main AI idea being claimed.
 
 Because browsers cannot read private local file paths automatically, choose your PDFs from the web UI. You can also save a generated browser index as JSON and load it again later.
 
